@@ -10,7 +10,7 @@ class Shop extends Model
     //
     use SoftDeletes;
     
-    $fillable = [
+    protected $fillable = [
         'vendor_id',
         'name',
         'address',
