@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('logo');
             $table->softDeletes();
             $table->timestamps();
-            $table->index(['vendor_id', 'name', 'state', 'city', 'zipcode']);
+            // $table->index(['vendor_id', 'name', 'state', 'city', 'zipcode']);
         });
     }
 
