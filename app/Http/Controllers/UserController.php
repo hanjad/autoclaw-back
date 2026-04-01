@@ -7,7 +7,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\AccountVerification;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
@@ -36,7 +35,6 @@ class UserController extends Controller
 
         DB::beginTransaction();
         try {
-
             $user = new User();
             $user->firstname = $request->input('firstname');
             $user->surname = $request->input('surname');
@@ -83,28 +81,4 @@ class UserController extends Controller
             ], 500);
         }
     }
-
-    // protected function sendEmailVerification(Model $user)
-    // {
-    //     // Remove existing verification tokens for the user
-    //     DB::table('account_verifications')->where('email', $user->email)->delete();
-
-    //     // Generate a new verification token
-    //     $token = rand(100000, 999999);
-
-    //     // Store the token in the database with an expiration time (e.g., 30 minutes)
-    //     AccountVerification::create([
-    //         'email' => $user->email,
-    //         'token' => $token,
-    //         'expires_at' => now()->addMinutes(30),
-    //     ]);
-
-    //     $url = config('app.frontend_url') . "/verify-email?token={$token}&email={$user->email}";
-    //     // Send the verification email
-    //     Mail::to($user->email)->send('emails.user-verification', [
-    //         'user' => $user,
-    //         'url' => $url,
-    //         'token' => $token,
-    //     ])->subject('Verify Your Email Address');
-    // }
 }
