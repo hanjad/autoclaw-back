@@ -28,7 +28,7 @@
     <h3>Dear {{ $user->firstname }} {{ $user->surname }},</h3>
     <p>Thank you for registering with us. Please click the link below to verify your email address:</p>
     <a href="{{ $url }}" id='verify-email'>Verify Email</a>
-    <p>This link will expire in 60 minutes.</p>
+    <p>This link will expire in 30 minutes.</p>
     <p>or copy and paste the following link into your browser:</p>
     <h2 id='token'>{{ $token }}</h2>
     <p>If you did not create an account, no further action is required.</p>
