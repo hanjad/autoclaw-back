@@ -17,11 +17,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'user.role' => \App\Http\Middleware\UserRoleMiddleware::class,
         ]);
 
-        // We sit behind Nginx / a load balancer / Cloudflare in production, so trust the
-        // forwarded headers (correct client IP for rate limits, https detection).
-        // Only safe while PHP is reachable through your proxy and not directly from the internet.
-        $middleware->trustProxies(at: '*');
-
         // Global API rate limit (the 'api' limiter is defined in AppServiceProvider)
         $middleware->throttleApi('api');
 

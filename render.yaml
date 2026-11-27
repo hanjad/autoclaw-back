@@ -87,6 +87,8 @@ services:
       # Emails are only written to the log until you change this (see DEPLOY-RENDER.md).
       - key: MAIL_MAILER
         value: log
+      - key: MAIL_LOG_CHANNEL
+        value: mail_stderr
       - key: MAIL_FROM_NAME
         value: Autoclaw
 

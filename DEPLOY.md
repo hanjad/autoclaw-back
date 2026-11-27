@@ -33,7 +33,13 @@ Config is cached, so changes to `.env` only apply after `php artisan config:cach
     location / { try_files $uri $uri/ /index.php?$query_string; }
     location ~ \.php$ { include snippets/fastcgi-php.conf; fastcgi_pass unix:/run/php/php8.3-fpm.sock; }
     location ~ /\.(?!well-known).* { deny all; }
-    client_max_body_size 5M;      # product/logo uploads are capped at 2 MB
+    client_max_body_size 26M;
+
+Set these limits in the PHP-FPM configuration and reload PHP-FPM. Verification can
+include four 5 MB files plus multipart overhead.
+
+    upload_max_filesize = 6M
+    post_max_size = 26M
 
 ### Queue worker (once emails/jobs are queued) - Supervisor
     [program:autoclaw-queue]

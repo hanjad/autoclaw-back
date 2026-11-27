@@ -17,8 +17,8 @@ class CreateAdmin extends Command
 
     public function handle(): int
     {
-        $email = strtolower((string) ($this->argument('email') ?: env('INITIAL_ADMIN_EMAIL')));
-        $password = (string) ($this->option('password') ?: env('INITIAL_ADMIN_PASSWORD'));
+        $email = strtolower((string) ($this->argument('email') ?: config('admin.initial_email')));
+        $password = (string) ($this->option('password') ?: config('admin.initial_password'));
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $this->error('Give a valid email address.');

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Shop;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -103,38 +104,49 @@ class AdminShopController extends Controller
             ], 422);
         }
 
-        $shop = Shop::find($id);
-
-        if (!$shop) {
-            return response()->json(['message' => 'Shop not found.'], 404);
-        }
-
         $decision = $request->input('decision');
-        $allowedFrom = [
-            'approve' => [Shop::PENDING, Shop::SUSPENDED],
-            'reject' => [Shop::PENDING],
-            'suspend' => [Shop::APPROVED, Shop::PENDING, Shop::REJECTED, Shop::UNSUBMITTED],
-        ];
-
-        if (!in_array($shop->verification_status, $allowedFrom[$decision], true)) {
-            return response()->json([
-                'message' => "You can't {$decision} a shop that is {$shop->verification_status}.",
-            ], 422);
-        }
-
         $admin = $request->user();
+        $shop = DB::transaction(function () use ($id, $request, $decision, $admin) {
+            $shop = Shop::query()->lockForUpdate()->find($id);
 
-        match ($decision) {
-            'approve' => $this->apply($shop, Shop::APPROVED, true, null),
-            'reject' => $this->apply($shop, Shop::REJECTED, false, $request->input('reason')),
-            'suspend' => $this->apply($shop, Shop::SUSPENDED, false, $request->input('reason')),
-        };
+            if (!$shop) {
+                return response()->json(['message' => 'Shop not found.'], 404);
+            }
 
-        $shop->reviewed_at = now();
-        $shop->reviewed_by = $admin->id;
-        $shop->verified_at = $decision === 'approve' ? now() : null;
-        $shop->verified_by = $decision === 'approve' ? $admin->id : null;
-        $shop->save();
+            $allowedFrom = [
+                'approve' => [Shop::PENDING, Shop::SUSPENDED],
+                'reject' => [Shop::PENDING],
+                'suspend' => [Shop::APPROVED, Shop::PENDING, Shop::REJECTED, Shop::UNSUBMITTED],
+            ];
+
+            if (!in_array($shop->verification_status, $allowedFrom[$decision], true)) {
+                return response()->json([
+                    'message' => "You can't {$decision} a shop that is {$shop->verification_status}.",
+                ], 422);
+            }
+
+            if ($decision === 'approve' && $shop->verification_status === Shop::SUSPENDED && !$shop->submitted_at) {
+                return response()->json(['message' => 'This shop has not been submitted for verification.'], 422);
+            }
+
+            match ($decision) {
+                'approve' => $this->apply($shop, Shop::APPROVED, true, null),
+                'reject' => $this->apply($shop, Shop::REJECTED, false, $request->input('reason')),
+                'suspend' => $this->apply($shop, Shop::SUSPENDED, false, $request->input('reason')),
+            };
+
+            $shop->reviewed_at = now();
+            $shop->reviewed_by = $admin->id;
+            $shop->verified_at = $decision === 'approve' ? now() : null;
+            $shop->verified_by = $decision === 'approve' ? $admin->id : null;
+            $shop->save();
+
+            return $shop;
+        });
+
+        if (!$shop instanceof Shop) {
+            return $shop;
+        }
 
         Log::info('Shop review decision', [
             'admin_id' => $admin->id,
