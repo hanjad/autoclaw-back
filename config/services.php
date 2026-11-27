@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    // Used server-side only: resolves bank account names during shop verification (free endpoint).
+    'paystack' => [
+        'secret' => env('PAYSTACK_SECRET_KEY'),
+    ],
+
 ];

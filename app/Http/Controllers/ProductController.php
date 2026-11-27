@@ -33,15 +33,16 @@ class ProductController extends Controller
             ], 422);
         }
 
-        // whereHas('shop') hides products whose shop was deleted
-        $query = Product::with('shop')->whereHas('shop');
+        // visible() hides products from deleted or suspended shops
+        $query = Product::with('shop')->visible();
 
         if ($q = $request->query('q')) {
-            $like = '%' . addcslashes($q, '%_\\') . '%';
+            // lower() on both sides: LIKE is case-sensitive on PostgreSQL
+            $like = '%' . mb_strtolower(addcslashes($q, '%_\\')) . '%';
             $query->where(function ($w) use ($like) {
-                $w->where('name', 'like', $like)
-                    ->orWhere('brand', 'like', $like)
-                    ->orWhere('description', 'like', $like);
+                $w->whereRaw('LOWER(products.name) LIKE ?', [$like])
+                    ->orWhereRaw('LOWER(products.brand) LIKE ?', [$like])
+                    ->orWhereRaw('LOWER(products.description) LIKE ?', [$like]);
             });
         }
 
@@ -80,7 +81,7 @@ class ProductController extends Controller
     // Public: distinct categories for filters
     public function categories()
     {
-        $categories = Product::whereHas('shop')
+        $categories = Product::visible()
             ->select('category')
             ->distinct()
             ->orderBy('category')
@@ -92,7 +93,7 @@ class ProductController extends Controller
     // Public: single product
     public function show($id)
     {
-        $product = Product::with('shop')->whereHas('shop')->find($id);
+        $product = Product::with('shop')->visible()->find($id);
 
         if (!$product) {
             return response()->json(['message' => 'Product not found.'], 404);
@@ -151,7 +152,7 @@ class ProductController extends Controller
             $image = null;
 
             if ($request->hasFile('image')) {
-                $image = $request->file('image')->store('product_images', 'public');
+                $image = $request->file('image')->store('product_images', config('marketplace.public_disk'));
             }
 
             $product = new Product();
@@ -171,10 +172,11 @@ class ProductController extends Controller
                 ->response()
                 ->setStatusCode(201);
         } catch (\Exception $e) {
+            report($e);
             DB::rollBack();
             return response()->json([
                 'message' => 'An error occurred while creating the product.',
-                'errors' => $e->getMessage(),
+                'errors' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }
@@ -230,24 +232,25 @@ class ProductController extends Controller
 
             if ($request->hasFile('image')) {
                 $oldImage = $product->image;
-                $product->image = $request->file('image')->store('product_images', 'public');
+                $product->image = $request->file('image')->store('product_images', config('marketplace.public_disk'));
             }
 
             $product->save();
             DB::commit();
 
             if ($oldImage) {
-                Storage::disk('public')->delete($oldImage);
+                Storage::disk(config('marketplace.public_disk'))->delete($oldImage);
             }
 
             return (new ProductResource($product->load('shop')))
                 ->additional(['message' => 'Product updated successfully.'])
                 ->response();
         } catch (\Exception $e) {
+            report($e);
             DB::rollBack();
             return response()->json([
                 'message' => 'An error occurred while updating the product.',
-                'errors' => $e->getMessage(),
+                'errors' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }

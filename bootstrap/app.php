@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Http\Request;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -12,11 +13,25 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
         $middleware->alias([
             'user.role' => \App\Http\Middleware\UserRoleMiddleware::class,
         ]);
+
+        // We sit behind Nginx / a load balancer / Cloudflare in production, so trust the
+        // forwarded headers (correct client IP for rate limits, https detection).
+        // Only safe while PHP is reachable through your proxy and not directly from the internet.
+        $middleware->trustProxies(at: '*');
+
+        // Global API rate limit (the 'api' limiter is defined in AppServiceProvider)
+        $middleware->throttleApi('api');
+
+        $middleware->api(append: [
+            \App\Http\Middleware\SecurityHeaders::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Always answer API calls with JSON (no redirects to a "login" page, no HTML error pages)
+        $exceptions->shouldRenderJsonWhen(
+            fn (Request $request, \Throwable $e) => $request->is('api/*') || $request->expectsJson()
+        );
     })->create();

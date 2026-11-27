@@ -2,15 +2,18 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\ShopController;
 use App\Http\Controllers\ProductController;
-use App\Http\Controllers\ProductDiscountController;
+use App\Http\Controllers\AdminShopController;
+use App\Http\Controllers\VendorShopController;
 use App\Http\Controllers\AdminInviteController;
+use App\Http\Controllers\ProductDiscountController;
 
-Route::post('/register', [UserController::class, 'store']);
-Route::post('/verify', [UserController::class,'verifyEmail']);
+// Auth (rate limiters are defined in AppServiceProvider; login limits itself in UserController)
+Route::post('/register', [UserController::class, 'store'])->middleware('throttle:register');
+Route::post('/verify', [UserController::class, 'verifyEmail'])->middleware('throttle:verify');
 Route::post('/login', [UserController::class, 'login']);
-Route::post('/resend-verification', [UserController::class, 'resendVerificationEmail']);
+Route::post('/resend-verification', [UserController::class, 'resendVerificationEmail'])->middleware('throttle:resend');
+Route::post('/logout', [UserController::class, 'logout'])->middleware('auth:sanctum');
 
 // Public: browse the catalogue
 Route::prefix('products')->group(function () {
@@ -25,11 +28,8 @@ Route::prefix('admin/invites')->middleware('throttle:10,1')->group(function () {
     Route::get('/check/{token}', [AdminInviteController::class, 'show']);
 });
 
+// Vendors and admins
 Route::middleware(['auth:sanctum', 'user.role:vendor,admin'])->group(function () {
-    Route::prefix('shops')->group(function () {
-        Route::post('/create', [ShopController::class, 'store']);
-    });
-
     Route::get('/vendor/products', [ProductController::class, 'mine']);
 
     Route::prefix('products')->group(function () {
@@ -41,11 +41,28 @@ Route::middleware(['auth:sanctum', 'user.role:vendor,admin'])->group(function ()
     });
 });
 
-// Admin only: manage invites
+// Vendors only: their own shop and its verification
+Route::middleware(['auth:sanctum', 'user.role:vendor'])->prefix('vendor')->group(function () {
+    Route::get('/shop', [VendorShopController::class, 'show']);
+    Route::post('/shop', [VendorShopController::class, 'store']);
+    Route::put('/shop', [VendorShopController::class, 'update']);          // POST with _method=PUT when uploading a logo
+    Route::post('/shop/verification', [VendorShopController::class, 'submitVerification'])->middleware('throttle:10,60');
+    Route::get('/banks', [VendorShopController::class, 'banks']);
+});
+
+// Admin only
 Route::middleware(['auth:sanctum', 'user.role:admin'])->group(function () {
     Route::prefix('admin/invites')->group(function () {
         Route::get('/', [AdminInviteController::class, 'index']);
         Route::post('/', [AdminInviteController::class, 'store']);
         Route::delete('/{id}', [AdminInviteController::class, 'destroy']);
+    });
+
+    Route::prefix('admin/shops')->group(function () {
+        Route::get('/', [AdminShopController::class, 'index']);
+        Route::get('/{id}/documents/{type}', [AdminShopController::class, 'document'])
+            ->whereNumber('id')
+            ->where('type', 'id_document|selfie|address_proof|cac_certificate');
+        Route::put('/{id}/verification', [AdminShopController::class, 'verification'])->whereNumber('id');
     });
 });

@@ -1,0 +1,20 @@
+<?php
+
+return [
+
+    // How many shops one vendor account may own
+    'max_shops_per_vendor' => 1,
+
+    // false: unverified shops are listed but labelled "Unverified".
+    // true:  only verified shops' products appear to the public (strictest anti-scam setting).
+    'require_verified_to_list' => (bool) env('MARKETPLACE_REQUIRE_VERIFIED', false),
+
+    // Where uploads go (names of disks in config/filesystems.php).
+    // public_disk: product images and shop logos (served to buyers). private_disk: verification documents (never public).
+    'public_disk' => env('PUBLIC_DISK', 'public'),
+    'private_disk' => env('PRIVATE_DISK', 'local'),
+
+    // How long the Nigerian bank list is cached (hours)
+    'banks_cache_hours' => 24,
+
+];

@@ -1,16 +1,18 @@
-# Git and local environment
 .git
+.github
 .env
 .env.*
-!.env.example
-
-# Dependencies and build output
-vendor
 node_modules
-public/build
-
-# Runtime files
+vendor
+tests
 storage/logs/*
-storage/framework/cache/*
+storage/framework/cache/data/*
 storage/framework/sessions/*
 storage/framework/views/*
+public/storage
+public/hot
+bootstrap/cache/*.php
+*.md
+.idea
+.vscode
+docker-compose*.yml
