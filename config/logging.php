@@ -105,6 +105,15 @@ return [
             'processors' => [PsrLogMessageProcessor::class],
         ],
 
+        'mail_stderr' => [
+            'driver' => 'monolog',
+            'level' => 'debug',
+            'handler' => StreamHandler::class,
+            'handler_with' => [
+                'stream' => 'php://stderr',
+            ],
+        ],
+
         'syslog' => [
             'driver' => 'syslog',
             'level' => env('LOG_LEVEL', 'debug'),

@@ -114,6 +114,18 @@ class Product extends Model
         return [$sql, $bindings];
     }
 
+    // Products the public may see: not from suspended shops (and, if configured, only from verified shops)
+    public function scopeVisible($query)
+    {
+        return $query->whereHas('shop', function ($shop) {
+            $shop->where('verification_status', '!=', 'suspended');
+
+            if (config('marketplace.require_verified_to_list')) {
+                $shop->where('is_verified', true);
+            }
+        });
+    }
+
     public function scopeOnSale($query)
     {
         [$sql, $bindings] = static::activeDiscountSql();

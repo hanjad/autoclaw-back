@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\Media;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,13 +17,16 @@ class ProductResource extends JsonResource
         $price = $this->effective_price;
         $status = $this->discountStatus();
 
+        // Resolves the bearer token even on public routes, so the shop can tell its owner "this is yours"
+        $viewer = $request->user('sanctum');
+
         return [
             'id' => $this->id,
             'shop_id' => $this->shop_id,
             'name' => $this->name,
             'brand' => $this->brand,
             'category' => $this->category,
-            'product_image' => $this->image ? asset('storage/' . $this->image) : null,
+            'product_image' => Media::url($this->image),
             'initial_price' => $this->initial_price,
             'selling_price' => $price,
             'discount_percent' => $this->initial_price > 0 && $price < $this->initial_price
@@ -40,6 +44,7 @@ class ProductResource extends JsonResource
             'desc' => $this->description,
             'merchant' => $this->shop?->name,
             'verified' => (bool) $this->shop?->is_verified,
+            'is_own' => $viewer !== null && $this->shop?->vendor_id === $viewer->id,
             'created_at' => $this->created_at,
         ];
     }

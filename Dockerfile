@@ -1,48 +1,53 @@
-# Build the Vite assets.
-FROM node:22-alpine AS frontend
-WORKDIR /app
-COPY . .
-RUN npm ci && npm run build
+# syntax=docker/dockerfile:1
+#
+# Autoclaw API (Laravel 12) for Render: PHP 8.3 + Apache, one container.
+# Build:  docker build -t autoclaw-api .
+# Run:    docker run --rm -p 10000:10000 --env-file .env.docker autoclaw-api
 
-# Run Laravel on Apache.
-FROM php:8.3-apache
+# ---------------------------------------------------------------- base: PHP + extensions + Apache
+FROM php:8.3-apache-bookworm AS base
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libicu-dev \
-        libonig-dev \
-        libzip-dev \
-        unzip \
-    && docker-php-ext-install -j"$(nproc)" \
-        bcmath \
-        intl \
-        mbstring \
-        pdo_mysql \
-        pdo_sqlite \
-        zip \
-    && a2enmod rewrite \
+        libpq-dev libzip-dev libicu-dev libpng-dev libjpeg62-turbo-dev libwebp-dev libfreetype6-dev unzip git \
+    && docker-php-ext-configure gd --with-jpeg --with-webp --with-freetype \
+    && docker-php-ext-install -j"$(nproc)" pdo_pgsql pdo_mysql bcmath intl zip gd opcache \
+    && a2enmod rewrite headers \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+# Apache listens on $PORT (Render sets it; 10000 is its default) and serves Laravel's public/ folder
+ENV PORT=10000
+COPY docker/ports.conf /etc/apache2/ports.conf
+COPY docker/vhost.conf /etc/apache2/sites-available/000-default.conf
+COPY docker/apache-extra.conf /etc/apache2/conf-available/zz-extra.conf
+COPY docker/php.ini /usr/local/etc/php/conf.d/99-app.ini
+RUN a2enconf zz-extra
 
+# ---------------------------------------------------------------- vendor: Composer dependencies
+FROM base AS vendor
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 
-# Install PHP dependencies before copying the rest of the application for better layer caching.
+# Install packages first so this layer is cached until composer.lock changes
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts
+RUN composer install --no-dev --no-interaction --no-progress --prefer-dist --no-scripts --no-autoloader
 
 COPY . .
-COPY --from=frontend /app/public/build ./public/build
+RUN composer dump-autoload --no-dev --optimize --classmap-authoritative --no-scripts
 
-# Serve Laravel's public directory and ensure Laravel can write its runtime files.
-RUN sed -ri 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/000-default.conf \
-    && chown -R www-data:www-data storage bootstrap/cache \
-    && php artisan package:discover --ansi
+# ---------------------------------------------------------------- final image
+FROM base AS app
+WORKDIR /var/www/html
+COPY --from=vendor /var/www/html /var/www/html
 
-ENV APP_ENV=production \
-    APP_DEBUG=false \
-    PORT=10000
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint
+RUN sed -i 's/\r$//' /usr/local/bin/entrypoint \
+    && chmod +x /usr/local/bin/entrypoint \
+    && mkdir -p storage/app/public storage/app/private storage/framework/cache/data \
+                storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache
 
 EXPOSE 10000
 
-# Render provides PORT at runtime; make Apache listen on that port.
-CMD ["sh", "-c", "sed -i \"s/^Listen 80$/Listen ${PORT:-10000}/\" /etc/apache2/ports.conf && sed -i \"s/<VirtualHost \\*:80>/<VirtualHost *:${PORT:-10000}>/\" /etc/apache2/sites-available/000-default.conf && exec apache2-foreground"]
+# The entrypoint caches config, runs migrations, then starts Apache
+ENTRYPOINT ["entrypoint"]
+CMD ["apache2-foreground"]

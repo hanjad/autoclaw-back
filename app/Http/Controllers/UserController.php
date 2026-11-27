@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\AccountVerification;
+use App\Http\Resources\UserResource;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
@@ -50,7 +51,7 @@ class UserController extends Controller
             DB::table('account_verifications')->where('email', $user->email)->delete();
 
             // Generate a new verification token
-            $token = rand(100000, 999999);
+            $token = random_int(100000, 999999);
 
             // Store the token in the database with an expiration time (e.g., 30 minutes)
             AccountVerification::create([
@@ -62,7 +63,7 @@ class UserController extends Controller
             $url = config('app.frontend_url') . "/verify-email?token={$token}&email={$user->email}";
             // Send the verification email
             Mail::send('emails.user-verification', [
-                'user' => $user,
+                'user' => new UserResource($user),
                 'url' => $url,
                 'token' => $token
             ], function ($message) use ($user) {
@@ -73,13 +74,14 @@ class UserController extends Controller
             DB::commit();
             return response()->json([
                 'message' => 'User created successfully.',
-                'user' => $user,
+                'user' => new UserResource($user),
             ], 201);
         } catch (\Exception $e) {
+            report($e);
             DB::rollBack();
             return response()->json([
                 'message' => 'An error occurred while creating the user.',
-                'errors' => $e->getMessage(),
+                'errors' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }
@@ -130,7 +132,7 @@ class UserController extends Controller
 
         return response()->json([
             'message' => 'Email verified successfully.',
-            'user' => $user,
+            'user' => new UserResource($user),
         ], 200);
     }
 
@@ -160,7 +162,7 @@ class UserController extends Controller
             DB::table('account_verifications')->where('email', $user->email)->delete();
 
             // Generate a new verification token
-            $token = rand(100000, 999999);
+            $token = random_int(100000, 999999);
 
             // Store the token in the database with an expiration time (e.g., 30 minutes)
             AccountVerification::create([
@@ -172,7 +174,7 @@ class UserController extends Controller
             $url = config('app.frontend_url') . "/verify-email?token={$token}&email={$user->email}";
             // Send the verification email
             Mail::send('emails.user-verification', [
-                'user' => $user,
+                'user' => new UserResource($user),
                 'url' => $url,
                 'token' => $token
             ], function ($message) use ($user) {
@@ -183,13 +185,14 @@ class UserController extends Controller
             DB::commit();
             return response()->json([
                 'message' => 'Verification email resent successfully.',
-                'user' => $user,
+                'user' => new UserResource($user),
             ], 200);
         } catch (\Exception $e) {
+            report($e);
             DB::rollBack();
             return response()->json([
                 'message' => 'An error occurred while resending the verification email.',
-                'errors' => $e->getMessage(),
+                'errors' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }
@@ -246,13 +249,22 @@ class UserController extends Controller
             return response()->json([
                 'message' => 'Login successful.',
                 'token' => $token,
-                'user' => $user,
+                'user' => new UserResource($user),
             ], 200);
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'message' => 'An error occurred while logging in.',
-                'errors' => $e->getMessage(),
+                'errors' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
+    }
+
+    // Logout: revoke the token that made this request
+    public function logout(Request $request)
+    {
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json(['message' => 'Logged out.'], 200);
     }
 }

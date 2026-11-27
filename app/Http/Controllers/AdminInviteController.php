@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Http\Resources\UserResource;
 use App\Models\AdminInvite;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -78,10 +79,11 @@ class AdminInviteController extends Controller
                 'invite' => $invite,
             ], 201);
         } catch (\Exception $e) {
+            report($e);
             DB::rollBack();
             return response()->json([
                 'message' => 'An error occurred while sending the invite.',
-                'errors' => $e->getMessage(),
+                'errors' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }
@@ -175,13 +177,14 @@ class AdminInviteController extends Controller
             return response()->json([
                 'message' => 'Admin account created successfully.',
                 'token' => $token,
-                'user' => $user,
+                'user' => new UserResource($user),
             ], 201);
         } catch (\Exception $e) {
+            report($e);
             DB::rollBack();
             return response()->json([
                 'message' => 'An error occurred while creating the admin account.',
-                'errors' => $e->getMessage(),
+                'errors' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }
