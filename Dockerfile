@@ -1,11 +1,12 @@
 # syntax=docker/dockerfile:1
 #
-# Autoclaw API (Laravel 12) for Render: PHP 8.3 + Apache, one container.
+# Autoclaw API (Laravel 12) for Render: PHP 8.4 + Apache, one container.
+# PHP 8.4 matches composer.lock (Symfony 8 packages need PHP 8.4 or newer).
 # Build:  docker build -t autoclaw-api .
 # Run:    docker run --rm -p 10000:10000 --env-file .env.docker autoclaw-api
 
 # ---------------------------------------------------------------- base: PHP + extensions + Apache
-FROM php:8.3-apache-bookworm AS base
+FROM php:8.4-apache-bookworm AS base
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libpq-dev libzip-dev libicu-dev libpng-dev libjpeg62-turbo-dev libwebp-dev libfreetype6-dev unzip git \

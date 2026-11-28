@@ -36,10 +36,10 @@ class CreateAdmin extends Command
         }
 
         $user = new User();
-        $user->firstname = $this->option('firstname') ?: env('INITIAL_ADMIN_FIRSTNAME', 'Mazeed');
-        $user->surname = $this->option('surname') ?: env('INITIAL_ADMIN_SURNAME', 'Salvador');
+        $user->firstname = $this->option('firstname') ?: config('admin.initial_firstname');
+        $user->surname = $this->option('surname') ?: config('admin.initial_surname');
         $user->email = $email;
-        $user->phone = $this->option('phone') ?: env('INITIAL_ADMIN_PHONE', '09060898888');
+        $user->phone = $this->option('phone') ?: config('admin.initial_phone');
         $user->password = $password;
         $user->role = 'admin';
         $user->email_verified_at = now();

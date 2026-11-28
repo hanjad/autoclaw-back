@@ -83,6 +83,8 @@ services:
         value: "false"
       - key: RUN_MIGRATIONS
         value: "true"
+      - key: CLIENT_IP_HEADER   # Render sits behind Cloudflare, which sets this to the visitor's real IP
+        value: CF-Connecting-IP
 
       # Emails are only written to the log until you change this (see DEPLOY-RENDER.md).
       - key: MAIL_MAILER

@@ -17,6 +17,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'user.role' => \App\Http\Middleware\UserRoleMiddleware::class,
         ]);
 
+        // Behind Render's proxy, trust the forwarded protocol/host/port so https is detected.
+        // X-Forwarded-For is deliberately NOT trusted: a client can forge it. The real visitor
+        // address (for rate limits) comes from App\Support\ClientIp instead.
+        $middleware->trustProxies(
+            at: '*',
+            headers: Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_HOST,
+        );
+
         // Global API rate limit (the 'api' limiter is defined in AppServiceProvider)
         $middleware->throttleApi('api');
 

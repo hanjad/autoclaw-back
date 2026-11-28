@@ -14,6 +14,10 @@ return [
     'public_disk' => env('PUBLIC_DISK', 'public'),
     'private_disk' => env('PRIVATE_DISK', 'local'),
 
+    // Header that carries the visitor's real IP when your host's edge sets it (Render: CF-Connecting-IP).
+    // Leave empty when unsure; see App\Support\ClientIp.
+    'client_ip_header' => env('CLIENT_IP_HEADER'),
+
     // How long the Nigerian bank list is cached (hours)
     'banks_cache_hours' => 24,
 

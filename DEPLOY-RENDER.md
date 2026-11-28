@@ -10,7 +10,7 @@ Only the first group is needed to run on Render. The rest are guides.
 
 | File | What it does |
 |---|---|
-| `Dockerfile` | The recipe for the box: PHP 8.3 + Apache, then your code, then your Composer packages |
+| `Dockerfile` | The recipe for the box: PHP 8.4 + Apache (your `composer.lock` needs 8.4), then your code, then your Composer packages |
 | `.dockerignore` | What to leave **out** of the box: `.env` secrets, `vendor`, `.git`, logs |
 | `docker/vhost.conf` | Tells Apache to serve Laravel's `public/` folder and send logs to Render's Logs tab |
 | `docker/ports.conf` | Tells Apache which port to listen on (Render's `$PORT`) |
@@ -95,14 +95,19 @@ Pick one:
 - **Your own SMTP server** (e.g. mail.6bytes.site): needs a paid web service. Set `MAIL_MAILER=smtp`, `MAIL_SCHEME=smtps`,
   `MAIL_HOST`, `MAIL_PORT=465`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`.
 
+With `MAIL_MAILER=log`, `render.yaml` also sets `MAIL_LOG_CHANNEL=mail_stderr`, so email contents show in the Logs tab even though
+`LOG_LEVEL` is `warning`.
+
 Mail is sent while the request waits. If your mail provider is slow, registration is slow too; a queue is the fix later.
 
 ## 5. Keeping uploads (paid plan)
 
 Product images, shop logos and **verification documents** live in `storage/app`. In `render.yaml` uncomment the `disk:`
 block (mount path `/var/www/html/storage/app`) and redeploy. A service with a disk runs as a single instance, which is
-fine for now. Later you can move files to object storage: set `PUBLIC_DISK` and `PRIVATE_DISK` to disks defined in
-`config/filesystems.php`. Use two separate buckets, because verification documents must never be public.
+fine for now. Later you can move files to object storage: first run `composer require league/flysystem-aws-s3-v3 "^3.0"` and commit
+`composer.json` and `composer.lock` (without it the app crashes as soon as an S3 disk is used), then set `PUBLIC_DISK` and
+`PRIVATE_DISK` to disks defined in `config/filesystems.php`. Use two separate buckets, because verification documents must
+never be public.
 
 ## 6. Environment variables
 
@@ -116,6 +121,7 @@ fine for now. Later you can move files to object storage: set `PUBLIC_DISK` and 
 | `LOG_CHANNEL=stderr` | render.yaml | Logs go to the Logs tab |
 | `MAIL_*`, `RESEND_API_KEY` | dashboard | See section 4 |
 | `PAYSTACK_SECRET_KEY` | dashboard | Optional. Looks up bank account names |
+| `CLIENT_IP_HEADER` | render.yaml | `CF-Connecting-IP` on Render, so rate limits are per visitor and not shared by everyone. Leave empty on hosts that don't set such a header |
 | `MARKETPLACE_REQUIRE_VERIFIED` | render.yaml | `true` shows only verified shops to buyers |
 | `SANCTUM_EXPIRATION` | render.yaml | Login lifetime in minutes (10080 = 7 days) |
 | `RUN_MIGRATIONS` | render.yaml | `true` migrates on every start (fine for one instance) |
